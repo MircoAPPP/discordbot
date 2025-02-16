@@ -113,7 +113,7 @@ client.on('interactionCreate', async interaction => {
         interaction.reply({ content: `Il ticket ${channel.name} è stato chiuso.`, ephemeral: true });
     }
 });
-
+client.login('MTM0MDMwNjIxMTI5OTM5MzU2Ng.GwA42n.cDLEDMQ-AM6vorB0tHGNjYjTVJnsCpOaPIscdI');
 client.on('messageCreate', async message => {
     // Comando per creare un ticket
     if (message.content === '!ticket') {
@@ -126,4 +126,5 @@ client.on('messageCreate', async message => {
 });
 
 
+client.login('MTM0MDMwNjIxMTI5OTM5MzU2Ng.GwA42n.cDLEDMQ-AM6vorB0tHGNjYjTVJnsCpOaPIscdI');
 
