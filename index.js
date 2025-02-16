@@ -127,4 +127,4 @@ client.on('messageCreate', async message => {
 
 
 
-client.login('MTM0MDMwNjIxMTI5OTM5MzU2Ng.GYunhy.B54xxcyPCppNBOLZktpcmAOLQ2kFUJW-hggRQA');
+client.login('');
