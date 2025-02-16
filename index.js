@@ -1,7 +1,8 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.MessageContent] });
 
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.MessageContent] });
 const PREFIX = '!';
 const warnDB = 'warnings.json';
 if (!fs.existsSync(warnDB)) fs.writeFileSync(warnDB, '{}');
@@ -13,11 +14,14 @@ client.on('messageCreate', async message => {
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const command = args.shift().toLowerCase();
 
+    if (!message.member) return;
+
     // Comando ban
     if (command === 'ban') {
         if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) return message.reply("Non hai i permessi!");
         const user = message.mentions.members.first();
         if (!user) return message.reply("Menziona un utente!");
+        if (!user.bannable) return message.reply("Non posso bannare questo utente!");
         await user.ban();
         message.channel.send(`${user.user.tag} è stato bannato.`);
     }
@@ -27,6 +31,7 @@ client.on('messageCreate', async message => {
         if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) return message.reply("Non hai i permessi!");
         const user = message.mentions.members.first();
         if (!user) return message.reply("Menziona un utente!");
+        if (!user.kickable) return message.reply("Non posso kickare questo utente!");
         await user.kick();
         message.channel.send(`${user.user.tag} è stato kickato.`);
     }
@@ -47,34 +52,21 @@ client.on('messageCreate', async message => {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) return message.reply("Non hai i permessi!");
         const amount = parseInt(args[0]);
         if (isNaN(amount) || amount < 1 || amount > 100) return message.reply("Inserisci un numero tra 1 e 100.");
-        await message.channel.bulkDelete(amount + 1, true);
+        await message.channel.bulkDelete(amount, true);
         message.channel.send(`Eliminati ${amount} messaggi!`).then(msg => setTimeout(() => msg.delete(), 5000));
-    }
-
-    // Comando !close per chiudere il ticket
-    if (command === 'close') {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply("Non hai i permessi per chiudere i ticket.");
-        }
-
-        const channel = message.channel;
-        if (!channel.name.startsWith('ticket-')) {
-            return message.reply("Questo non è un ticket valido.");
-        }
-
-        await channel.delete();
-        message.reply("Il ticket è stato chiuso.");
     }
 });
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isButton()) return;
 
-    // Apertura del ticket
+    const channel = interaction.channel;
+    if (!channel) return;
+
     if (interaction.customId === 'open_ticket') {
-        const channel = await interaction.guild.channels.create({
+        const ticketChannel = await interaction.guild.channels.create({
             name: `ticket-${interaction.user.username}`,
-            type: 0, // 0 è il tipo di canale testo
+            type: 0,
             permissionOverwrites: [
                 { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                 { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel] }
@@ -86,36 +78,24 @@ client.on('interactionCreate', async interaction => {
             new ButtonBuilder().setCustomId('close_ticket').setLabel('Chiudi Ticket').setStyle(ButtonStyle.Danger)
         );
 
-        channel.send({ content: `${interaction.user}, descrivi il tuo problema.`, components: [row] });
-        interaction.reply({ content: `Ticket creato: ${channel}`, ephemeral: true });
+        ticketChannel.send({ content: `${interaction.user}, descrivi il tuo problema.`, components: [row] });
+        interaction.reply({ content: `Ticket creato: ${ticketChannel}`, ephemeral: true });
     }
 
-    // Reclamo del ticket
     if (interaction.customId === 'claim_ticket') {
-        const channel = interaction.channel;
-        if (!channel) return;
         await channel.permissionOverwrites.edit(interaction.user.id, { ViewChannel: true, ManageChannels: true });
         interaction.reply({ content: `${interaction.user} ha preso in carico il ticket!`, ephemeral: false });
     }
 
-    // Chiusura del ticket tramite pulsante
     if (interaction.customId === 'close_ticket') {
-        const channel = interaction.channel;
-        if (!channel) return;
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return interaction.reply({ content: "Non hai i permessi per chiudere questo ticket.", ephemeral: true });
         }
-    
-        // Elimina il canale del ticket
         await channel.delete();
-    
-        // Rispondi all'interazione con un messaggio che non coinvolga il canale eliminato
-        interaction.reply({ content: `Il ticket ${channel.name} è stato chiuso.`, ephemeral: true });
     }
 });
-client.login('MTM0MDMwNjIxMTI5OTM5MzU2Ng.GwA42n.cDLEDMQ-AM6vorB0tHGNjYjTVJnsCpOaPIscdI');
+
 client.on('messageCreate', async message => {
-    // Comando per creare un ticket
     if (message.content === '!ticket') {
         const embed = new EmbedBuilder().setTitle('Sistema Ticket').setDescription('Clicca il bottone per aprire un ticket.');
         const row = new ActionRowBuilder().addComponents(
@@ -125,6 +105,4 @@ client.on('messageCreate', async message => {
     }
 });
 
-
-client.login('MTM0MDMwNjIxMTI5OTM5MzU2Ng.GwA42n.cDLEDMQ-AM6vorB0tHGNjYjTVJnsCpOaPIscdI');
-
+client.login(process.env.TOKEN);
